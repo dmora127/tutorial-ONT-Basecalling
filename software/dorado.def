@@ -1,0 +1,31 @@
+Bootstrap: docker
+From: nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04
+
+%post
+    DEBIAN_FRONTEND=noninteractive
+
+    # system packages
+    apt-get update -y
+    apt-get install -y \
+         build-essential \
+         wget
+
+    apt install -y python3-pip
+
+    # install Dorado and POD5
+    cd /opt/
+    wget https://cdn.oxfordnanoportal.com/software/analysis/dorado-1.2.0-linux-x64.tar.gz
+    tar -zxvf dorado-1.2.0-linux-x64.tar.gz
+    rm dorado-1.2.0-linux-x64.tar.gz
+
+    # install POD5 using pip
+    pip install pod5 --break-system-packages
+
+    # install samtools for bam to fastq conversion
+    apt-get update -y
+    apt-get install -y samtools
+
+%environment
+    # set up environment for when using the container
+    # add Dorado to $PATH variable for ease of use
+    export PATH="/opt/dorado-1.2.0-linux-x64/bin/:$PATH"
