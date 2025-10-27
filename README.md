@@ -68,7 +68,9 @@ To obtain a copy of the files used in this tutorial, you can
   
   ```
   git clone https://github.com/osg-htc/tutorial-long-read-genomics
+  ./tutorial-setup.sh <username>
   ```
+    _This script will create a directory structure in your home directory `/home/<user.name>/tutorial-ONT-Basecalling/` and ospool directory `/ospool/ap40/<user.name>/tutorial-ONT-Basecalling/ along with several subdirectories we will use._
 
   or the equivalent for your device
 
@@ -108,52 +110,50 @@ text to a new file titled `dorado.def`. You can open up a text editor, such as `
 
     ```
     Bootstrap: docker
-    From: nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04
+    From: nvidia/cuda:13.0.1-base-ubuntu24.04
+    
+    %files
+    
+        dorado-1.2.0-linux-x64.tar.gz /opt/dorado-1.2.0-linux-x64.tar.gz
+        bedtools /opt/bedtools/bedtools
     
     %post
         DEBIAN_FRONTEND=noninteractive
     
         # system packages
         apt-get update -y
-        apt-get install -y \
-                build-essential \
-                wget
+        apt-get install -y python3-minimal curl
+        curl -sS https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+        python3 get-pip.py --break-system-packages
+        rm get-pip.py
     
-        apt install -y python3-pip
-       
         # install Dorado and POD5
         cd /opt/
-        wget https://cdn.oxfordnanoportal.com/software/analysis/dorado-0.9.5-linux-x64.tar.gz
-        tar -zxvf dorado-0.9.5-linux-x64.tar.gz
-        rm dorado-0.9.5-linux-x64.tar.gz
-        
+        tar -zxvf dorado-1.2.0-linux-x64.tar.gz
+        rm dorado-1.2.0-linux-x64.tar.gz
+    
         # install POD5 using pip
         pip install pod5 --break-system-packages
-   
-        # install samtools for bam to fastq conversion
-        apt-get update -y
-        apt-get install -y samtools
     
     %environment
-    
         # set up environment for when using the container
         # add Dorado to $PATH variable for ease of use
-        export PATH="/opt/dorado-0.9.5-linux-x64/bin/:$PATH"
+        export PATH="/opt/dorado-1.2.0-linux-x64/bin/:$PATH"
+        export PATH="/opt/bedtools/:$PATH"
     ```
 
-    This definition file uses the Nvidia CUDA Ubuntu 24.04 base image and installs necessary packages to run Dorado and POD5
-    on our data.
+    This definition file uses the Nvidia CUDA 13.0.1 Libraries on an Ubuntu 24.04 base image and installs necessary packages to run Dorado and POD5 in .
 
 
 4. Build your apptainer container on the Access Point (AP) by running the following command:
     ```
-    apptainer build dorado.sif dorado.def
+    apptainer build dorado_build1.2.0_27OCT2025_v1.sif dorado.def
    ```
    
-5. Move your finalized container image `dorado.sif` to your `OSDF` directory
+5. Move your finalized container image `dorado_build1.2.0_27OCT2025_v1.sif` to your `OSDF` directory
     
     ```
-   mv dorado.sif /ospool/ap40/data/<user.name>/
+   mv dorado_build1.2.0_27OCT2025_v1.sif /ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/software/
    ```
    
 ### Data Wrangling and Splitting Reads
@@ -166,36 +166,72 @@ to running Dorado, we must first reorganize the data contained within all the PO
 
 ----
 
+#### Downloading the Dorado Basecalling Models
+Dorado basecalling models are not included in the Dorado apptainer container image by default. As a result, we must download the models we wish to use for basecalling prior to submitting our basecalling jobs. We can download the models directly using the Dorado command line interface (CLI) within our Dorado apptainer container.
+
+1. Launch an interactive apptainer shell session on the Access Point (AP) using your `dorado_build1.2.0_27OCT2025_v1.sif` container.
+    ```
+    apptainer shell /ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/software/dorado_build1.2.0_27OCT2025_v1.sif
+   ```
+
+2. Download the Dorado basecalling models you wish to use for basecalling. For this tutorial, we will download the `dna_r10.4.1_e8.2_400bps_hac@v5.2.0` model for simplex basecalling and the `duplex_sup@v5.2.0` model for duplex basecalling.
+
+    ```
+   dorado download --model all --models-directory /ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/data/
+    ```
+    _This will download all available Dorado basecalling models to your current working directory._
+
+3. Exit the apptainer shell session
+    ```
+    exit
+    ```
+
+4. Compress the models into tar.gz files for easy transfer to the Execution Point (EP) during job submission.
+
+    ```
+   cd /ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/data/
+   for d in */ ; do
+      tar -czf "${d%/}.tar.gz" "$d" && rm -rf "$d"
+   done 
+    ```
+   _This will create a tar.gz file for each model directory and remove the uncompressed directory._
+
 #### Splitting your reads for basecalling
 When basecalling our sequencing data using simplex basecalling mode on Dorado we can subdivide our POD5 files into smaller individual subsets. This subdivision of our files enables us to take advantage of the OSPool's High Throughput Computing (HTC) principles, significantly decreasing the time-to-results for our basecalling. We will use the `POD5` package installed in our `dorado.sif` container—if you need to generate the `dorado.sif` apptainer image, refer to [Setting up our software environment](#Setting-up-our-software-environment). 
 
-1. Launch an interactive apptainer shell session on the Access Point (AP) using your `dorado.sif` container. This will allow us to run POD5 commands to inspect our data.
+1. Launch an interactive apptainer shell session on the Access Point (AP) using your `dorado_build1.2.0_27OCT2025_v1.sif` container. This will allow us to run POD5 commands to inspect our data.
     ```
-    apptainer shell -B ${PWD}:${PWD} dorado.sif
+    apptainer shell /ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/software/dorado_build1.2.0_27OCT2025_v1.sif
    ```
    _This will generate a TSV table mapping each read_id to each channel for basecalling._
 
 2. Create a csv that maps reads in your `pod5_dir` to subset files.
     ```
-    pod5 view <path_to_pod5_dir> --include "read_id, channel" --output summary.tsv
+    pod5 view <pod5_dir> --include "read_id, channel" --output summary.tsv
    ```
    _This will generate a TSV table mapping each read_id to each channel for basecalling._
 
 3. Using the `read_subsets.csv` mapping file, subset your POD5 reads to the output directory `split_pod5_subsets`
     ```
-   pod5 subset <path_to_pod5_dir> --summary summary.tsv --columns channel --output split_pod5_subsets
+   pod5 subset <pod5_dir> --summary summary.tsv --columns channel --output split_pod5_subsets
    ```
    
-4. Create a list of POD5 files to iterate through while basecalling
+4. Exit the apptainer shell session
+    ```
+   exit
+   ```
+   _You may have to run `exit` multiple times to exit the apptainer shell and return to your normal bash shell._
+   
+5. Create a list of POD5 files to iterate through while basecalling
 
     ```
-   ls split_pod5_subsets > /home/<user.name>/genomics_tutorial/pod5_files
+    ls split_pod5_subsets > ~/tutorial-ONT-Basecalling/list_of_pod5_files.txt
    ```
    
     If you `head` this new file you should see an output similar to this:
 
     ```
-    [user.name@ap40 user.name]$ head /home/<user.name>/genomics_tutorial/pod5_files
+    [user.name@ap40 user.name]$ head ~/tutorial-ONT-Basecalling/list_of_pod5_files.txt
     channel-100.pod5
     channel-101.pod5
     channel-102.pod5
@@ -212,68 +248,84 @@ When basecalling our sequencing data using simplex basecalling mode on Dorado we
 ### Submitting your basecalling jobs
 
 
-1. Create your Dorado simplex basecalling executable - `/home/<user.name>/genomics_tutorial/executables/basecalling_step2_simplex_reads.sh`
+1. Create your Dorado simplex basecalling executable - `/home/<user.name>/tutorial-ONT-Basecalling/executables/run_dorado.sh`
 
     ```
-    #!/bin/bash 
+    #!/bin/bash
     # Run Dorado on the EP for each POD5 file (non-resumeable)
-    #dorado ${dorado_arg_string} ${input_pod5_file} > ${output_bam_file}
-    echo "Running dorado with: $1"
+    # Usage: ./run_dorado.sh "<dorado_args>" <dorado_model_name> <input_pod5_file>
+    
+    set -euo pipefail
+    
+    DORADO_ARGS="$1"
+    DORADO_MODEL_NAME="$2"
+    INPUT_POD5="$3"
+    BAM_FILE="${INPUT_POD5}.bam"
+    FASTQ_FILE="${BAM_FILE}.fastq"
+    
+    echo "Running Dorado with args: ${DORADO_ARGS}"
+    echo "Model Name: ${DORADO_MODEL_NAME}"
+    echo "Input POD5: ${INPUT_POD5}"
+    echo "Output BAM: ${BAM_FILE}"
     
     # untar your Dorado basecalling models
-    tar -xvzf models.tar.gz
-    rm models.tar.gz
-    echo "completed tar unzip"
+    tar -xvzf ${DORADO_MODEL_NAME}.tar.gz
+    rm ${DORADO_MODEL_NAME}.tar.gz
+    echo "Completed model extraction."
     
-    args="$1"
-    eval "dorado $args"
-   
-    echo "completed dorado basecalling"
-   
-    # convert BAM to FASTQ using bedtools
-    samtools fastq ${BAM_FILE} > ${BAM_FILE}.fastq
+    # Run Dorado
+    dorado ${DORADO_ARGS} "${DORADO_MODEL_NAME}" "${INPUT_POD5}" > "${BAM_FILE}"
+    echo "Completed Dorado basecalling."
     
-    echo "completed bam to fastq conversion"
+    # Convert BAM to FASTQ
+    samtools fastq "${BAM_FILE}" > "${FASTQ_FILE}"
+    echo "Completed BAM → FASTQ conversion."
    ```
 
-2. Create your submit file for Dorado simplex basecalling - `/home/<user.name>/genomics_tutorial/submit_files/basecalling_step2_simplex_reads.sub`
+2. Create your submit file for Dorado simplex basecalling - `/home/<user.name>/tutorial-ONT-Basecalling/run_dorado.sub`
 
     ```
-    container_image        = "osdf:///ospool/ap40/data/<user.name>/dorado.sif"
-
-    executable		       = ../executables/basecalling_step2_simplex_reads.sh
-    arguments		       = "'basecaller --batchsize 16 hac@v5.0.0 --models-directory ./models/ $(POD5_input_file) > $(POD5_input_file).bam'"
+    container_image        = "osdf:///ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/software/dorado_build1.2.0_27OCT2025_v1.sif"
+    
+    DORADO_MODEL = dna_r10.4.1_e8.2_400bps_hac@v5.2.0
+    
+    executable             = ./executables/run_dorado.sh
+    
+    # Place your Dorado command (following the Dorado invocation) in the first positional argument
+    arguments              = "'basecaller --device cuda:all --batchsize 16 hac@v5.0.0 --models-directory' $(DORADO_MODEL) $(POD5_input_file)"
+     
+    transfer_input_files   = inputs/split_by_channels/$(POD5_input_file), osdf:///ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/data/$(DORADO_MODEL).tar.gz
+    transfer_output_files  = $(POD5_input_file).bam, $(POD5_input_file).bam.fastq
+    transfer_output_remaps = "$(POD5_input_file).bam = ./outputs/basecalledBAMs/$(POD5_input_file).bam; \
+                              $(POD5_input_file).bam.fastq = ./outputs/basecalledFASTQs/$(POD5_input_file).bam.fastq"
+    
+    output                 = ./logs/out/$(POD5_input_file)_$(Process)_basecalling_step2.out
+    error                  = ./logs/err/$(POD5_input_file)_$(Process)_basecalling_step2.err
+    log                    = ./logs/$(POD5_input_file)_basecalling_step2.log
    
-    environment = "BAM_FILE=$(POD5_input_file).bam"
-    
-    transfer_input_files   = osdf:///ospool/ap40/data/<user.name>/split_by_channels/$(POD5_input_file), osdf:///ospool/ap40/data/<user.name>/models.tar.gz
-
-    transfer_output_files  = ./$(POD5_input_file).bam, ./$(POD5_input_file).fastq
-    output_destination	   = osdf:///ospool/ap40/data/<user.name>/basecalledBAMs/
-    
-    output                 = ./basecalling_step2/logs/$(POD5_input_file)_$(Process)_basecalling_step2.out
-    error                  = ./basecalling_step2/logs/$(POD5_input_file)_$(Process)_basecalling_step2.err
-    log                    = ./basecalling_step2/logs/$(POD5_input_file)_$(Process)_basecalling_step2.log
-    
+    # CHTC sites are currently experiencing issues with GPU jobs, so we will avoid them for this tutorial. 
+    +UNDESIRED_Sites       = "CHTC,CHTC-Spark"
+   
     request_cpus           = 1
     request_disk           = 8 GB
-    request_memory         = 24 GB 
-    request_gpus		   = 1
+    request_memory         = 20 GB
+    retry_request_memory   = RequestMemory*2
+    request_gpus           = 1
     
-    queue POD5_input_file from /home/<user.name>/genomics_tutorial/pod5_files
+    queue POD5_input_file from list_of_pod5_files.txt
    ```
 
-This submit file will read the contents of `/home/<user.name>/genomics_tutorial/pod5_files`, iterate through each line, and assign the value of each line to the variable `$POD5_input_file`. This allows to us programmatically submit _N_ jobs, where _N_ is equal to the number of POD5 subset file we created previously. Each job will have its corresponding POD5 input subset (`subset_id-105.pod5`) and `models.tar.gz` files transferred to the Execution Point (EP). Additionally, we will transfer and start our `dorado.sif` apptainer container image using the `container_image` attribute on our submit file. 
+This submit file will read the contents of `/home/<user.name>/tutorial-ONT-Basecalling/list_of_pod5_files.txt`, iterate through each line, and assign the value of each line to the variable `$POD5_input_file`. This allows us to programmatically submit _N_ jobs, where _N_ is equal to the number of POD5 subset file we created previously. Each job will have its corresponding POD5 input subset (e.x. `channel-100.pod5`) and our specific Dorado model (e.x. `dna_r10.4.1_e8.2_400bps_hac@v5.2.0.tar.gz`) files transferred to the Execution Point (EP). Additionally, we will transfer and start our `dorado_build1.2.0_27OCT2025_v1.sif` apptainer container image using the `container_image` attribute on our submit file. 
 
-The submit file will instruct the EP to run our executable `basecalling_step2_simplex_reads.sh` and pass the arguments found in the `arguments` attribute. The `arguments` attribute allows us to customize the parameters passed to _Dorado_ directly on our submit file, without having to edit our executable. 
+The submit file will instruct the EP to run our executable `run_dorado.sh` and pass the arguments found in the `arguments` attribute. The `arguments` attribute allows us to customize the parameters passed to _Dorado_ directly on our submit file, without having to edit our executable. 
 
 > [!NOTE]  
-> The example submit script above is running the hac@v5.0.0 model for simplex basecalling. You can change this to `duplex sup --models-directory ./models/ $(POD5_input_file) > $(POD5_input_file).bam'`. For additional usage information, refer to the [Dorado User Documentation](https://github.com/nanoporetech/dorado).
+> The example submit script above is running the hac@v5.0.0 model for simplex basecalling. You can change this to `duplex sup --models-directory`. For additional usage information, refer to the [Dorado User Documentation](https://github.com/nanoporetech/dorado).
 
 3. Submit your set of basecalling jobs
 
     ```
-   condor_submit basecalling_step2_simplex_reads.sub
+   condor_submit run_dorado.sub
    ```
    
     You can track the progress of your jobs with the `condor_q` command
