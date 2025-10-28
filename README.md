@@ -177,6 +177,9 @@ Dorado basecalling models are not included in the Dorado apptainer container ima
     ```
     _This will download all available Dorado basecalling models to your current working directory._
 
+> [!NOTE]  
+> This step will download all the available Dorado basecalling models. If you only wish to download specific models, you can replace the `--model all` argument with `--model <model_name>`, where `<model_name>` is the name of the model you wish to download (e.x. `dna_r10.4.1_e8.2_400bps_hac@v5.2.0` or `duplex_sup@v5.2.0`).
+
 3. Exit the apptainer shell session
     ```
     exit
