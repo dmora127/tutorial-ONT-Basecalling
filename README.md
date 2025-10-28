@@ -110,12 +110,7 @@ text to a new file titled `dorado.def`. You can open up a text editor, such as `
 
     ```
     Bootstrap: docker
-    From: nvidia/cuda:13.0.1-base-ubuntu24.04
-    
-    %files
-    
-        dorado-1.2.0-linux-x64.tar.gz /opt/dorado-1.2.0-linux-x64.tar.gz
-        bedtools /opt/bedtools/bedtools
+    From: nvidia/cuda:13.0.1-cudnn-runtime-ubuntu22.04
     
     %post
         DEBIAN_FRONTEND=noninteractive
@@ -125,10 +120,12 @@ text to a new file titled `dorado.def`. You can open up a text editor, such as `
         apt-get install -y python3-minimal curl
         curl -sS https://bootstrap.pypa.io/get-pip.py -o get-pip.py
         python3 get-pip.py --break-system-packages
-        rm get-pip.py
+        rm get-pip.py 
+        apt-get install -y bedtools
     
         # install Dorado and POD5
         cd /opt/
+        curl -L https://cdn.oxfordnanoportal.com/software/analysis/dorado-1.2.0-linux-x64.tar.gz -o ./dorado-1.2.0-linux-x64.tar.gz
         tar -zxvf dorado-1.2.0-linux-x64.tar.gz
         rm dorado-1.2.0-linux-x64.tar.gz
     
@@ -139,7 +136,6 @@ text to a new file titled `dorado.def`. You can open up a text editor, such as `
         # set up environment for when using the container
         # add Dorado to $PATH variable for ease of use
         export PATH="/opt/dorado-1.2.0-linux-x64/bin/:$PATH"
-        export PATH="/opt/bedtools/:$PATH"
     ```
 
     This definition file uses the Nvidia CUDA 13.0.1 Libraries on an Ubuntu 24.04 base image and installs necessary packages to run Dorado and POD5 in .
