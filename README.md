@@ -67,7 +67,7 @@ To obtain a copy of the files used in this tutorial, you can
 * Clone the repository, with 
   
   ```
-  git clone https://github.com/osg-htc/tutorial-long-read-genomics
+  git clone https://github.com/dmora127/tutorial-ONT-Basecalling.git
   ./tutorial-setup.sh <username>
   ```
     _This script will create a directory structure in your home directory `/home/<user.name>/tutorial-ONT-Basecalling/` and ospool directory `/ospool/ap40/<user.name>/tutorial-ONT-Basecalling/ along with several subdirectories we will use._
