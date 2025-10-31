@@ -167,18 +167,19 @@ Dorado basecalling models are not included in the Dorado apptainer container ima
 
 1. Launch an interactive apptainer shell session on the Access Point (AP) using your `dorado_build1.2.0_27OCT2025_v1.sif` container.
     ```
-    apptainer shell /ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/software/dorado_build1.2.0_27OCT2025_v1.sif
+    cd /ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/
+    apptainer shell --bind "$PWD" software/dorado_build1.2.0_27OCT2025_v1.sif
    ```
 
-2. Download the Dorado basecalling models you wish to use for basecalling. For this tutorial, we will download the `dna_r10.4.1_e8.2_400bps_hac@v5.2.0` model for simplex basecalling and the `duplex_sup@v5.2.0` model for duplex basecalling.
+2. Download the Dorado basecalling models you wish to use for basecalling. For this tutorial, we will download the `dna_r10.4.1_e8.2_400bps_hac@v5.2.0` model for basecalling.
 
     ```
-   dorado download --model all --models-directory /ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/data/
+   dorado download --model dna_r10.4.1_e8.2_400bps_hac@v5.2.0 --models-directory /ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/data/
     ```
     _This will download all available Dorado basecalling models to your current working directory._
 
 > [!NOTE]  
-> This step will download all the available Dorado basecalling models. If you only wish to download specific models, you can replace the `--model all` argument with `--model <model_name>`, where `<model_name>` is the name of the model you wish to download (e.x. `dna_r10.4.1_e8.2_400bps_hac@v5.2.0` or `duplex_sup@v5.2.0`).
+> This step will download the requested Dorado basecalling model. If you only wish to download specific models, you can replace the `--model dna_r10.4.1_e8.2_400bps_hac@v5.2.0` argument with `--model <model_name>`, where `<model_name>` is the name of the model you wish to download (e.x. `duplex_sup@v5.2.0`). You can also download all the available models (not recommended as there are many models) using the `--model all` option.
 
 3. Exit the apptainer shell session
     ```
@@ -188,40 +189,43 @@ Dorado basecalling models are not included in the Dorado apptainer container ima
 4. Compress the models into tar.gz files for easy transfer to the Execution Point (EP) during job submission.
 
     ```
-   cd /ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/data/
-   for d in */ ; do
-      tar -czf "${d%/}.tar.gz" "$d" && rm -rf "$d"
-   done 
+    cd /ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/data/
+    tar -czf dna_r10.4.1_e8.2_400bps_hac@v5.2.0.tar.gz "$d" && rm -rf dna_r10.4.1_e8.2_400bps_hac@v5.2.0/ 
     ```
-   _This will create a tar.gz file for each model directory and remove the uncompressed directory._
+   _This will create a tar.gz file for your model directory and remove the uncompressed directory. If you're using a different model use the following syntax: `tar -czf <model-name>.tar.gz "$d" && rm -rf <model-name>/`_
 
 #### Splitting your reads for basecalling
 When basecalling our sequencing data using simplex basecalling mode on Dorado we can subdivide our POD5 files into smaller individual subsets. This subdivision of our files enables us to take advantage of the OSPool's High Throughput Computing (HTC) principles, significantly decreasing the time-to-results for our basecalling. We will use the `POD5` package installed in our `dorado.sif` container—if you need to generate the `dorado.sif` apptainer image, refer to [Setting up our software environment](#Setting-up-our-software-environment). 
 
-1. Launch an interactive apptainer shell session on the Access Point (AP) using your `dorado_build1.2.0_27OCT2025_v1.sif` container. This will allow us to run POD5 commands to inspect our data.
+1. Change into your data directory containing your POD5 files in your home directory.
     ```
-    apptainer shell /ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/software/dorado_build1.2.0_27OCT2025_v1.sif
+    cd ~/tutorial-ONT-Basecalling/inputs/
+   ```
+
+2. Launch an interactive apptainer shell session on the Access Point (AP) using your `dorado_build1.2.0_27OCT2025_v1.sif` container. This will allow us to run POD5 commands to inspect our data.
+    ```
+    apptainer shell --bind "$PWD" /ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/software/dorado_build1.2.0_27OCT2025_v1.sif
    ```
    _This will generate a TSV table mapping each read_id to each channel for basecalling._
 
-2. Create a csv that maps reads in your `pod5_dir` to subset files.
+3. Create a csv that maps reads in your `pod5_dir` to subset files (in this case you can use `./` for the present working directory.
     ```
     pod5 view <pod5_dir> --include "read_id, channel" --output summary.tsv
    ```
    _This will generate a TSV table mapping each read_id to each channel for basecalling._
 
-3. Using the `read_subsets.csv` mapping file, subset your POD5 reads to the output directory `split_pod5_subsets`
+4. Using the `read_subsets.csv` mapping file, subset your POD5 reads to the output directory `split_pod5_subsets`
     ```
    pod5 subset <pod5_dir> --summary summary.tsv --columns channel --output split_pod5_subsets
    ```
    
-4. Exit the apptainer shell session
+5. Exit the apptainer shell session
     ```
    exit
    ```
    _You may have to run `exit` multiple times to exit the apptainer shell and return to your normal bash shell._
    
-5. Create a list of POD5 files to iterate through while basecalling
+6. Create a list of POD5 files to iterate through while basecalling
 
     ```
     ls split_pod5_subsets > ~/tutorial-ONT-Basecalling/list_of_pod5_files.txt
