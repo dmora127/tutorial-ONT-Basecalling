@@ -25,5 +25,5 @@ dorado ${DORADO_ARGS} "${DORADO_MODEL_NAME}" "${INPUT_POD5}" > "${BAM_FILE}"
 echo "Completed Dorado basecalling."
 
 # Convert BAM to FASTQ
-bedtools bamtofastq [OPTIONS] -i "${BAM_FILE}" -fq "${FASTQ_FILE}"
+bedtools bamtofastq -i "${BAM_FILE}" -fq "${FASTQ_FILE}"
 echo "Completed BAM → FASTQ conversion."
