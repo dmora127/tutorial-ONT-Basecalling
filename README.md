@@ -218,6 +218,8 @@ When basecalling our sequencing data using simplex basecalling mode on Dorado we
     ```
    pod5 subset <pod5_dir> --summary summary.tsv --columns channel --output split_pod5_subsets
    ```
+> [!WARNING]  
+> This step will take a while depending on the size of your POD5 files and the number of channels present in your data. It will generate one pod5 file per channel in the `split_pod5_subsets` output directory. Most MinION Flow Cells have 512 channels, so you should expect to see ~512 POD5 files in your output directory. **You should never output your subsetted POD5 files to your OSPool directory, as it will cause excessive strain on shared storage resources and violate OSPool usage policies.** Only output your subsetted POD5 files to your home directory.
    
 5. Exit the apptainer shell session
     ```
