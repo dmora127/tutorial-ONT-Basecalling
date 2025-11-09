@@ -347,6 +347,17 @@ The submit file will instruct the EP to run our executable `run_dorado.sh` and p
 > [user.name@ap40 user.name]$ 
 > ```
 
+### Submitting your basecalling jobs
+
+You'll likely want to perform additional steps after basecalling, such as checking read quality, mapping to a reference genome, or calling variants. We recommend merging your basecalled FASTQ files into a single file for downstream analysis. You can do this using the `cat` command:
+
+```
+for f in outputs/basecalledFASTQs/*.fastq; do
+    cat "$f" >> outputs/merged_basecalled_reads.fastq
+done
+```
+
+You can use this merged FASTQ file for running FastQC, mapping, or variant calling in the next sections. The recommended next step is to run FastQC to assess the quality of your basecalled reads. You can find a tutorial on running FastQC on the OSPool [here](https://portal.osg-htc.org/documentation/software_examples/bioinformatics/tutorial-fastqc/).
 
 ## Next Steps
 
