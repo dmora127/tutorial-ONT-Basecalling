@@ -73,7 +73,7 @@ To obtain a copy of the tutorial files, you can:
   ```
   _This script creates the directory structure in your home directory `/home/<user.name>/tutorial-ONT-Basecalling/` and OSPool directory `/ospool/ap40/<user.name>/tutorial-ONT-Basecalling/`, along with several subdirectories used in this tutorial._
 
-* Or download the toy dataset using Pelican:
+* Or download the toy dataset using Pelican **CURRENT UNAVAILBLE - WORK IN PROGRESS**:
 
   ```bash
   pelican object get pelican://osg-htc.org/ospool/uw-shared/OSG-Staff/osg-training/tutorial-ospool-genomics/data/path/to/pod5/files ./
