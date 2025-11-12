@@ -11,10 +11,38 @@ This tutorial guides you through the first step of a long-read sequencing analys
 
 All of these steps run across hundreds (or thousands) of jobs using the HTCondor workload manager and Apptainer containers to execute your software reliably and reproducibly at scale. The tutorial uses realistic genomics data and emphasizes performance, reproducibility, and portability. You will work with real data and see how high-throughput computing (HTC) can accelerate your workflows.
 
+![Workflow_Diagram.png](Workflow_Diagram.png)
+
 > [!NOTE]
 > If you are new to running jobs on the OSPool, complete the HTCondor ["Hello World"](https://portal.osg-htc.org/documentation/htc_workloads/workload_planning/htcondor_job_submission/) exercise before starting this tutorial.
 
 **Let’s get started!**
+
+<!-- TOC start (generated with https://github.com/derlin/bitdowntoc) -->
+
+- [tutorial-ONT-Basecalling](#tutorial-ont-basecalling)
+- [Long-Read Genomics on the OSPool](#long-read-genomics-on-the-ospool)
+   * [Tutorial Setup](#tutorial-setup)
+      + [Assumptions](#assumptions)
+      + [Materials](#materials)
+   * [Understanding Basecalling in Oxford Nanopore Sequencing](#understanding-basecalling-in-oxford-nanopore-sequencing)
+      + [From Signal to Sequence: The Role of Basecalling](#from-signal-to-sequence-the-role-of-basecalling)
+   * [Basecalling on the OSPool by Sequencing Channel](#basecalling-on-the-ospool-by-sequencing-channel)
+   * [Recommended Directory Structure](#recommended-directory-structure)
+   * [Basecalling Oxford Nanopore Long Reads Using Dorado](#basecalling-oxford-nanopore-long-reads-using-dorado)
+      + [Set Up Your Software Environment](#set-up-your-software-environment)
+      + [Data Wrangling and Splitting Reads](#data-wrangling-and-splitting-reads)
+         - [Downloading the Dorado Basecalling Models](#downloading-the-dorado-basecalling-models)
+         - [Split Your Reads for Basecalling](#split-your-reads-for-basecalling)
+      + [Submit Your Basecalling Jobs](#submit-your-basecalling-jobs)
+      + [Post-Basecalling Steps](#post-basecalling-steps)
+   * [Next Steps](#next-steps)
+      + [Software](#software)
+      + [Data](#data)
+      + [GPUs](#gpus)
+   * [Getting Help](#getting-help)
+
+<!-- TOC end -->
 
 ---
 
@@ -109,7 +137,7 @@ You also have a companion **OSDF** directory for storing large files, such as co
 Run the included `tutorial-setup.sh` script in the companion repository to create this structure.
 
 ---
-## Basecalling Oxford Nanopore Long Reads Using Dorad
+## Basecalling Oxford Nanopore Long Reads Using Dorado
 
 ### Set Up Your Software Environment
 Before basecalling, set up your software environment to run Dorado inside an Apptainer container.
@@ -164,10 +192,10 @@ Before basecalling, set up your software environment to run Dorado inside an App
         export PATH="/opt/dorado-1.2.0-linux-x64/bin/:$PATH"
     ```
 
-    This definition file uses the Nvidia CUDA 13.0.1 Libraries on an Ubuntu 22.04 base image and installs necessary packages to run Dorado and POD5 in .
+    This definition file uses the Nvidia CUDA 13.0.1 libraries on an Ubuntu 22.04 base image and installs necessary packages to run Dorado and POD5 in an Apptainer container.
 
 
-4. Build your apptainer container on the Access Point (AP):
+4. Build your Apptainer container on the Access Point (AP):
     ```bash
     apptainer build dorado_build1.2.0_27OCT2025_v1.sif dorado.def
    ```
@@ -189,9 +217,9 @@ to running Dorado, we must first reorganize the data contained within all the PO
 ----
 
 #### Downloading the Dorado Basecalling Models
-Dorado basecalling models are not included in the Dorado apptainer container image by default. As a result, we must download the models we wish to use for basecalling prior to submitting our basecalling jobs. We can download the models directly using the Dorado command line interface (CLI) within our Dorado apptainer container.
+Dorado basecalling models are not included in the Dorado Apptainer container image by default. As a result, we must download the models we wish to use for basecalling prior to submitting our basecalling jobs. We can download the models directly using the Dorado command line interface (CLI) within our Dorado Apptainer container.
 
-1. Launch an interactive apptainer shell session on the Access Point (AP) using your `dorado_build1.2.0_27OCT2025_v1.sif` container:
+1. Launch an interactive Apptainer shell session on the Access Point (AP) using your `dorado_build1.2.0_27OCT2025_v1.sif` container:
     
    ```bash
     cd /ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/
@@ -219,15 +247,17 @@ Dorado basecalling models are not included in the Dorado apptainer container ima
     tar -czf dna_r10.4.1_e8.2_400bps_hac@v5.2.0.tar.gz dna_r10.4.1_e8.2_400bps_hac@v5.2.0 && rm -rf dna_r10.4.1_e8.2_400bps_hac@v5.2.0/ 
     ```
 
+Now that your data are organized into channel-specific subsets, you’re ready to submit your jobs to the OSPool.
+
 #### Split Your Reads for Basecalling
-When basecalling our sequencing data on Dorado we can subdivide our POD5 files into smaller individual subsets. This subdivision of our files enables us to take advantage of the OSPool's High Throughput Computing (HTC) principles, significantly decreasing the time-to-results for our basecalling. We will use the `POD5` package installed in our `dorado.sif` container—if you need to generate the `dorado.sif` apptainer image, refer to [Setting up our software environment](#Setting-up-our-software-environment). 
+When basecalling our sequencing data on Dorado we can subdivide our POD5 files into smaller individual subsets. This subdivision of our files enables us to take advantage of the OSPool's High Throughput Computing (HTC) principles, significantly decreasing the time-to-results for our basecalling. We will use the `POD5` package installed in our `dorado.sif` container—if you need to generate the `dorado.sif` Apptainer image, refer to [Setting up our software environment](#Setting-up-our-software-environment). 
 
 1. Move to your `inputs/` directory where your POD5 files are located:
     ```bash
     cd ~/tutorial-ONT-Basecalling/inputs/
    ```
 
-2. Launch an interactive apptainer shell session on the Access Point (AP) using your `dorado_build1.2.0_27OCT2025_v1.sif` container:
+2. Launch an interactive Apptainer shell session on the Access Point (AP) using your `dorado_build1.2.0_27OCT2025_v1.sif` container:
     ```bash
     apptainer shell --bind "$PWD" /ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/software/dorado_build1.2.0_27OCT2025_v1.sif
    ```
@@ -343,7 +373,7 @@ When basecalling our sequencing data on Dorado we can subdivide our POD5 files i
     queue POD5_input_file from list_of_pod5_files.txt
    ```
 
-This submit file will read the contents of `/home/<user.name>/tutorial-ONT-Basecalling/list_of_pod5_files.txt`, iterate through each line, and assign the value of each line to the variable `$POD5_input_file`. This allows you to programmatically submit _N_ jobs, where _N_ equals the number of POD5 subset files you previously created. Each job has its corresponding POD5 input subset (e.g., `channel-100.pod5`) and your specific Dorado model (e.g., `dna_r10.4.1_e8.2_400bps_hac@v5.2.0.tar.gz`) transferred to the Execution Point (EP). Additionally, the container_image attribute ensures your `dorado_build1.2.0_27OCT2025_v1.sif` Apptainer image is transferred and started for each job.
+This submit file will read the contents of `/home/<user.name>/tutorial-ONT-Basecalling/list_of_pod5_files.txt`, iterate through each line, and assign the value of each line to the variable `$POD5_input_file`. This allows you to programmatically submit _N_ jobs, where _N_ equals the number of POD5 subset files you previously created. Each job processes one POD5 channel subset (e.g., `channel-100.pod5`) using your specific Dorado model (e.g., `dna_r10.4.1_e8.2_400bps_hac@v5.2.0.tar.gz`), which are transferred to the Execution Point (EP) by HTCondor. Additionally, the container_image attribute ensures your `dorado_build1.2.0_27OCT2025_v1.sif` Apptainer image is transferred and started for each job.
 
 The submit file will instruct the EP to run your executable `run_dorado.sh` and pass the arguments found in the `arguments` attribute. The `arguments` attribute allows you to customize the parameters passed to _Dorado_ directly on your submit file, without having to edit your executable. 
 
@@ -366,9 +396,10 @@ The submit file will instruct the EP to run your executable `run_dorado.sh` and 
 > If you see `held` jobs (e.g., for memory overruns), use `condor_qedit` to increase resources, then `condor_release` to resume them.
 > For more details, see our guide on [Monitor and Review Jobs With condor_q and condor_history](https://portal.osg-htc.org/documentation/htc_workloads/submitting_workloads/monitor_review_jobs/).
 
-### Submitting your basecalling jobs
 
-You'll likely want to perform additional steps after basecalling, such as checking read quality, mapping to a reference genome, or calling variants. We recommend merging your basecalled FASTQ files into a single file for downstream analysis. You can do this using the `cat` command:
+### Post-Basecalling Steps
+
+You should now have a directory of basecalled FASTQ and BAM files in your outputs folder. You'll likely want to perform additional steps after basecalling, such as checking read quality, mapping to a reference genome, or calling variants. We recommend merging your basecalled FASTQ files into a single file for downstream analysis. You can do this using the `cat` command:
 
 ```
 for f in outputs/basecalledFASTQs/*.fastq; do
@@ -406,7 +437,7 @@ Now that you've completed this long-read genomics tutorial on the OSPool, you're
 
 ### Software
 
-In this tutorial, we created several *starter* apptainer containers, including tools like: Dorado, SAMtools, Minimap, and Sniffles2. These containers can serve as a *jumping-off* for you if you need to install additional software for your workflows. 
+In this tutorial, we created several *starter* Apptainer containers, including tools like: Dorado, SAMtools, Minimap, and Sniffles2. These containers can serve as a *jumping-off* for you if you need to install additional software for your workflows. 
 
 Our recommendation for most users is to use "Apptainer" containers for deploying their software.
 For instructions on how to build an Apptainer container, see our guide [Using Apptainer/Singularity Containers](https://portal.osg-htc.org/documentation/htc_workloads/using_software/containers-singularity/).
