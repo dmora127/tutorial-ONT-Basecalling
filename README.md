@@ -1,48 +1,22 @@
 # tutorial-ONT-Basecalling
 # Long-Read Genomics on the OSPool
 
-This tutorial will walk you through a complete long-read sequencing analysis workflow using Oxford Nanopore data on the OSPool high-throughput computing ecosystem. You'll learn how to:
+This tutorial guides you through the first step of a long-read sequencing analysis workflow — basecalling — using Oxford Nanopore data on the OSPool high-throughput computing ecosystem. You will learn how to:
 
-* Basecall raw Nanopore reads using the latest GPU-accelerated Dorado basecaller
-* Map your reads to a reference genome using Minimap2
-* Call structural variants using Sniffles2
-* Breakdown massive bioinformatics workflows into many independent smaller tasks
-* Submit hundreds to thousands of jobs with a few simple commands
-* Use the Open Science Data Federation (OSDF) to manage file transfer during job submission
+* Basecall raw Nanopore reads using the latest GPU-accelerated Dorado basecaller  
+* Use the OSPool's GPU capacity to accelerate basecalling with Dorado  
+* Break down massive bioinformatics workflows into many independent smaller tasks  
+* Submit hundreds to thousands of jobs with a few simple commands  
+* Use the Open Science Data Federation (OSDF) to manage file transfers during job submission  
 
-All of these steps are distributed across hundreds (or thousands!) of jobs using the HTCondor workload manager and Apptainer containers to run your software reliably and reproducibly at scale. The tutorial is built around realistic genomics use cases and emphasizes performance, reproducibility, and portability. You'll work with real data and see how high-throughput computing (HTC) can accelerate your genomics workflows.
+All of these steps run across hundreds (or thousands) of jobs using the HTCondor workload manager and Apptainer containers to execute your software reliably and reproducibly at scale. The tutorial uses realistic genomics data and emphasizes performance, reproducibility, and portability. You will work with real data and see how high-throughput computing (HTC) can accelerate your workflows.
 
->[!NOTE]
->If you're brand new to running jobs on the OSPool, we recommend completing the HTCondor ["Hello World"](https://portal.osg-htc.org/documentation/htc_workloads/workload_planning/htcondor_job_submission/) exercise before diving into this tutorial.
+> [!NOTE]
+> If you are new to running jobs on the OSPool, complete the HTCondor ["Hello World"](https://portal.osg-htc.org/documentation/htc_workloads/workload_planning/htcondor_job_submission/) exercise before starting this tutorial.
 
 **Let’s get started!**
 
-Jump to...
-<!-- TOC start (generated with https://github.com/derlin/bitdowntoc) -->
-
-- [Long-Read Genomics on the OSPool](#long-read-genomics-on-the-ospool)
-   * [Tutorial Setup](#tutorial-setup)
-      + [Assumptions](#assumptions)
-      + [Materials](#materials)
-   * [Basecalling Oxford Nanopore long reads using Dorado](#basecalling-oxford-nanopore-long-reads-using-dorado)
-      + [Setting up our software environment](#setting-up-our-software-environment)
-      + [Data Wrangling and Splitting Reads](#data-wrangling-and-splitting-reads)
-         - [For _Simplex_ basecalling](#for-simplex-basecalling)
-         - [For _Duplex_ basecalling](#for-duplex-basecalling)
-      + [Submitting your basecalling jobs](#submitting-your-basecalling-jobs)
-   * [Mapping Sequencing Reads to Genome](#mapping-sequencing-reads-to-genome)
-      + [Data Wrangling and Splitting Reads](#data-wrangling-and-splitting-reads-1)
-      + [Running Minimap to Map Reads to the Reference Genome](#running-minimap-to-map-reads-to-the-reference-genome)
-  * [Structural Variant Calling using Sniffles2](#structural-variant-calling-using-sniffles2)
-      + [Data Wrangling and Splitting Reads](#Data-Wrangling-and-Splitting-Reads-2)
-      + [Submitting our Sniffles2 SV jobs to the OSPool](#submitting-our-sniffles2-sv-jobs-to-the-ospool)
-   * [Next Steps](#next-steps)
-      + [Software](#software)
-      + [Data](#data)
-      + [GPUs](#gpus)
-   * [Getting Help](#getting-help)
-
-<!-- TOC end -->
+---
 
 ## Tutorial Setup
 
@@ -50,65 +24,117 @@ Jump to...
 
 This tutorial assumes that you:
 
-* Have basic command-line experience (e.g., navigating directories, using bash, editing text files).
-* Have a working OSPool account and can log into an Access Point (e.g., ap40.uw.osg-htc.org).
-* Are familiar with HTCondor job submission, including writing simple .sub files and tracking job status with condor_q.
-* Understand the general workflow of long-read sequencing analysis: basecalling → mapping → variant calling.
-* Have access to a machine with a GPU-enabled execution environment (provided automatically via the OSPool).
-* Have sufficient disk quota and file permissions in your OSPool home and OSDF directories.
+* Have basic command-line experience (e.g., navigating directories, using bash, editing text files)
+* Have a working OSPool account and can log into an Access Point (e.g., ap40.uw.osg-htc.org)
+* Are familiar with HTCondor job submission, including writing simple `.sub` files and tracking job status with `condor_q`
+* Understand the general workflow of long-read sequencing analysis: basecalling → mapping → variant calling
+* Have access to a machine with a GPU-enabled execution environment (provided automatically via the OSPool)
+* Have sufficient disk quota and file permissions in your OSPool home and OSDF directories
 
->[!TIP]
->You do not need to be a genomics expert to follow this tutorial. The commands and scripts are designed to be beginner-friendly and self-contained, while still reflecting real-world research workflows.
+> [!TIP]
+> You do not need to be a genomics expert to follow this tutorial. The commands and scripts are beginner-friendly and self-contained while reflecting real-world research workflows.
 
 ### Materials
 
-To obtain a copy of the files used in this tutorial, you can
+To obtain a copy of the tutorial files, you can:
 
-* Clone the repository, with 
-  
-  ```
+* Clone the repository:
+
+  ```bash
   git clone https://github.com/dmora127/tutorial-ONT-Basecalling.git
   ./tutorial-setup.sh <username>
   ```
-    _This script will create a directory structure in your home directory `/home/<user.name>/tutorial-ONT-Basecalling/` and ospool directory `/ospool/ap40/<user.name>/tutorial-ONT-Basecalling/ along with several subdirectories we will use._
+  _This script creates the directory structure in your home directory `/home/<user.name>/tutorial-ONT-Basecalling/` and OSPool directory `/ospool/ap40/<user.name>/tutorial-ONT-Basecalling/`, along with several subdirectories used in this tutorial._
 
-  or the equivalent for your device
+* Or download the toy dataset using Pelican:
 
-* Download the toy dataset using the Pelican platform: 
-  
+  ```bash
+  pelican object get pelican://osg-htc.org/ospool/uw-shared/OSG-Staff/osg-training/tutorial-ospool-genomics/data/path/to/pod5/files ./
+  ```
+
+---
+
+## Understanding Basecalling in Oxford Nanopore Sequencing
+
+In Oxford Nanopore Technologies (ONT) sequencing, the instrument does not directly read DNA or RNA bases. Instead, it measures subtle changes in ionic current as a single-stranded molecule passes through a nanopore embedded in a membrane. These electrical current traces—often called raw signals or squiggles—reflect the sequence-dependent resistance patterns of the nucleotides inside the pore.
+
+### From Signal to Sequence: The Role of Basecalling
+
+Basecalling converts continuous electrical signals into nucleotide sequences (A, C, G, T, or U). Basecalling algorithms interpret the temporal and amplitude patterns in the current signal to infer the most probable sequence of bases. This step is one of the most computationally demanding parts of the ONT analysis pipeline.
+
+Dorado uses deep neural network models trained to map signal patterns to their corresponding base sequences. These models rely on GPU acceleration to perform millions of operations per second. GPUs dramatically shorten inference time by parallelizing the math behind neural network prediction, enabling accurate and high-throughput decoding of long-read data.
+
+Because each read or POD5 file can be basecalled independently, Dorado workflows scale perfectly on the OSPool, where thousands of GPU-enabled jobs can run simultaneously. The OSPool’s distributed architecture provides the compute, memory, and data-staging infrastructure (via OSDF) needed to handle large sequencing runs reproducibly and efficiently. You can turn hours of local computation into minutes of parallel basecalling across the national HTC fabric.
+
+---
+
+## Basecalling on the OSPool by Sequencing Channel
+
+When performing simplex basecalling with Dorado, reorganize your raw data by sequencing channel before submitting jobs to the OSPool. Each Oxford Nanopore flow cell contains hundreds to thousands of channels that generate independent signal traces, meaning the data in a single POD5 file can be subdivided into smaller, channel-specific subsets.
+
+By splitting the data so that each channel’s reads are in their own POD5 file, you enable true parallel basecalling: each channel file becomes an independent job that can run simultaneously across hundreds or thousands of OSPool execution points. This design aligns with the principles of High Throughput Computing (HTC)—many small, independent jobs working together to accelerate large workflows. Channel-level splitting also enables duplex basecalling, which requires organizing data to pair complementary reads, maximizing accuracy and yield.
+
+Use the POD5 package available inside your `dorado.sif` container to generate per-channel subsets and organize them into a `split_pod5_subsets` directory. Once subdivided, each new POD5 file can be basecalled individually, dramatically reducing time-to-results while maintaining reproducibility and scalability on the OSPool.
+
+---
+
+## Recommended Directory Structure
+
+Use a layout like the one below (directories may already exist if you ran the setup script):
+
+```bash
+ont-basecalling/
+├── executables/               # helper scripts
+├── inputs/                    # POD5 inputs (or OSDF paths to them)
+├── logs/                      # condor .log/.out/.err
+├── outputs/                   # basecalled outputs (BAM/FASTQ)
+├── software/                  # containers, model tarballs, helper assets
+├── list_of_pod5_files.txt     # one POD5 path per line
+├── run_dorado.sub             # HTCondor submit file (GPU)
+└── tutorial-setup.sh          # optional helper to set up the tree
+```
+
+You also have a companion **OSDF** directory for storing large files, such as containers and Dorado models:
+
+```bash
+/ospool/<ap##>/data/<your-username>/tutorial-ONT-Basecalling/
+├── data/
+│   ├── dna_r10.4.1_e8.2_400bps_fast@v4.2.0_5mCG_5hmCG@v2.tar.gz
+│   ├── dna_r10.4.1_e8.2_400bps_fast@v4.2.0.tar.gz
+│   ├── rna004_130bps_sup@v5.2.0.tar.gz
+├── software/
+│   └── dorado_build1.2.0_27OCT2025_v1.sif
+```
+
+Run the included `tutorial-setup.sh` script in the companion repository to create this structure.
+
+---
+## Basecalling Oxford Nanopore Long Reads Using Dorad
+
+### Set Up Your Software Environment
+Before basecalling, set up your software environment to run Dorado inside an Apptainer container.
+
+1. Log into your OSPool account:
+
+    ```bash
+    ssh user.name@ap##.uw.osg-htc.org
     ```
-    pelican object get pelican://osg-htc.org/ospool/uc-shared/public/osg-training/tutorial-ospool-genomics/data/path/to/pod5/files ./
-    ```
 
-<!--TODO: Generate simulated pod5 files from strain and upload to uc-shared directory-->
+2. Set your temporary Apptainer build directory to `/home/tmp/`. Once you've built your container, you can delete the contents of this directory to reduce quota usage on `/home`. 
 
-## Basecalling Oxford Nanopore long reads using Dorado
-
-### Setting up our software environment
-Before we can begin basecalling our reads, we need to setup our software environment to run Dorado. We are going to setup our environment using an Apptainer container. 
-
-1. First, let's login to our OSPool Account
-
-    ```
-    ssh user.name@ap40.uw.osg-htc.org
-    ```
-
-2. Run the following commands on the Access Point (AP) to set our temporary apptainer build directory to `/home/tmp/`.
-Once you've built your container, you can delete the contents of this directory to reduce quota usage on `/home`. 
-
-    ```
+   On the Access Point (AP), run:
+    ```bash
     mkdir -p $HOME/tmp
     export TMPDIR=$HOME/tmp
     export APPTAINER_TMPDIR=$HOME/tmp
     export APPTAINER_CACHEDIR=$HOME/tmp
     ```
 > [!CAUTION]
-> These commands must be ran <ins>**every time you login and to build a new container**</ins>. Building Apptainer containers on the Access Point without first running the commands above places excessive strain on shared storage resources and <ins>**violates OSPool usage policies**</ins>. Failure to follow these steps may result in restricted access to the system.
+> Run these commands **every time you log in or build a new container**. Building Apptainer containers without setting these variables places excessive strain on shared storage resources and **violates OSPool usage policies**. Failure to follow these steps may result in restricted access.
 
-3. We now need to write up a definition file for singularity to build our Dorado container. Copy and paste this block of
-text to a new file titled `dorado.def`. You can open up a text editor, such as `vim` or `nano` using a command like: `vim dorado.def`.
+3.  Create a definition file for Apptainer to build your Dorado container. Open a text editor, such as `vim` or `nano`, and save the following as `dorado.def`:
 
-    ```
+    ```bash
     Bootstrap: docker
     From: nvidia/cuda:13.0.1-cudnn-runtime-ubuntu22.04
     
@@ -138,23 +164,23 @@ text to a new file titled `dorado.def`. You can open up a text editor, such as `
         export PATH="/opt/dorado-1.2.0-linux-x64/bin/:$PATH"
     ```
 
-    This definition file uses the Nvidia CUDA 13.0.1 Libraries on an Ubuntu 24.04 base image and installs necessary packages to run Dorado and POD5 in .
+    This definition file uses the Nvidia CUDA 13.0.1 Libraries on an Ubuntu 22.04 base image and installs necessary packages to run Dorado and POD5 in .
 
 
-4. Build your apptainer container on the Access Point (AP) by running the following command:
-    ```
+4. Build your apptainer container on the Access Point (AP):
+    ```bash
     apptainer build dorado_build1.2.0_27OCT2025_v1.sif dorado.def
    ```
    
-5. Move your finalized container image `dorado_build1.2.0_27OCT2025_v1.sif` to your `OSDF` directory
+5. Move your finalized container image, `dorado_build1.2.0_27OCT2025_v1.sif`, to your `OSDF` directory
     
-    ```
+    ```bash
    mv dorado_build1.2.0_27OCT2025_v1.sif /ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/software/
    ```
    
 ### Data Wrangling and Splitting Reads
 
-Oxford Nanopore sequencing runs general yield POD5 files. Each POD5 file is generated about once an hour throughout the
+Oxford Nanopore sequencing runs generally yield POD5 files. Each POD5 file is generated about once an hour throughout the
 duration of the sequencing run. This output format does not scale very well, as data output usually plateaus after 24-48hrs.
 This would mean that POD5 files that are generated from earlier in the sequencing run, will be larger in file size compared to
 files later in the run. Additionally, this division of data does not allow for _Duplex_ read basecalling. As a result prior
@@ -165,71 +191,69 @@ to running Dorado, we must first reorganize the data contained within all the PO
 #### Downloading the Dorado Basecalling Models
 Dorado basecalling models are not included in the Dorado apptainer container image by default. As a result, we must download the models we wish to use for basecalling prior to submitting our basecalling jobs. We can download the models directly using the Dorado command line interface (CLI) within our Dorado apptainer container.
 
-1. Launch an interactive apptainer shell session on the Access Point (AP) using your `dorado_build1.2.0_27OCT2025_v1.sif` container.
-    ```
+1. Launch an interactive apptainer shell session on the Access Point (AP) using your `dorado_build1.2.0_27OCT2025_v1.sif` container:
+    
+   ```bash
     cd /ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/
     apptainer shell --bind "$PWD" software/dorado_build1.2.0_27OCT2025_v1.sif
    ```
 
-2. Download the Dorado basecalling models you wish to use for basecalling. For this tutorial, we will download the `dna_r10.4.1_e8.2_400bps_hac@v5.2.0` model for basecalling.
+2. Download your desired Dorado model (e.g. `dna_r10.4.1_e8.2_400bps_hac@v5.2.0`) to your `data/` directory in your OSPool tutorial directory:
 
-    ```
+    ```bash
    dorado download --model dna_r10.4.1_e8.2_400bps_hac@v5.2.0 --models-directory /ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/data/
     ```
-    _This will download all available Dorado basecalling models to your current working directory._
 
 > [!NOTE]  
 > This step will download the requested Dorado basecalling model. If you only wish to download specific models, you can replace the `--model dna_r10.4.1_e8.2_400bps_hac@v5.2.0` argument with `--model <model_name>`, where `<model_name>` is the name of the model you wish to download (e.x. `duplex_sup@v5.2.0`). You can also download all the available models (not recommended as there are many models) using the `--model all` option.
 
-3. Exit the apptainer shell session
-    ```
+3. Exit the Apptainer shell:
+    ```bash
     exit
     ```
 
-4. Compress the models into tar.gz files for easy transfer to the Execution Point (EP) during job submission.
+4. Compress the models into tar.gz files for efficient transfer to the Execution Point (EP) during job submission:
 
-    ```
+    ```bash
     cd /ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/data/
-    tar -czf dna_r10.4.1_e8.2_400bps_hac@v5.2.0.tar.gz "$d" && rm -rf dna_r10.4.1_e8.2_400bps_hac@v5.2.0/ 
+    tar -czf dna_r10.4.1_e8.2_400bps_hac@v5.2.0.tar.gz dna_r10.4.1_e8.2_400bps_hac@v5.2.0 && rm -rf dna_r10.4.1_e8.2_400bps_hac@v5.2.0/ 
     ```
-   _This will create a tar.gz file for your model directory and remove the uncompressed directory. If you're using a different model use the following syntax: `tar -czf <model-name>.tar.gz "$d" && rm -rf <model-name>/`_
 
-#### Splitting your reads for basecalling
-When basecalling our sequencing data using simplex basecalling mode on Dorado we can subdivide our POD5 files into smaller individual subsets. This subdivision of our files enables us to take advantage of the OSPool's High Throughput Computing (HTC) principles, significantly decreasing the time-to-results for our basecalling. We will use the `POD5` package installed in our `dorado.sif` container—if you need to generate the `dorado.sif` apptainer image, refer to [Setting up our software environment](#Setting-up-our-software-environment). 
+#### Split Your Reads for Basecalling
+When basecalling our sequencing data on Dorado we can subdivide our POD5 files into smaller individual subsets. This subdivision of our files enables us to take advantage of the OSPool's High Throughput Computing (HTC) principles, significantly decreasing the time-to-results for our basecalling. We will use the `POD5` package installed in our `dorado.sif` container—if you need to generate the `dorado.sif` apptainer image, refer to [Setting up our software environment](#Setting-up-our-software-environment). 
 
-1. Change into your data directory containing your POD5 files in your home directory.
-    ```
+1. Move to your `inputs/` directory where your POD5 files are located:
+    ```bash
     cd ~/tutorial-ONT-Basecalling/inputs/
    ```
 
-2. Launch an interactive apptainer shell session on the Access Point (AP) using your `dorado_build1.2.0_27OCT2025_v1.sif` container. This will allow us to run POD5 commands to inspect our data.
-    ```
+2. Launch an interactive apptainer shell session on the Access Point (AP) using your `dorado_build1.2.0_27OCT2025_v1.sif` container:
+    ```bash
     apptainer shell --bind "$PWD" /ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/software/dorado_build1.2.0_27OCT2025_v1.sif
    ```
-   _This will generate a TSV table mapping each read_id to each channel for basecalling._
-
-3. Create a csv that maps reads in your `pod5_dir` to subset files (in this case you can use `./` for the present working directory.
-    ```
+   
+3. Create a table mapping each read ID to its channel:
+    ```bash
     pod5 view <pod5_dir> --include "read_id, channel" --output summary.tsv
    ```
-   _This will generate a TSV table mapping each read_id to each channel for basecalling._
+   _This will generate a TSV table mapping each read_id to each channel for basecalling. You can change `<pod5_dir>` for `./`, if you're in the current directory with your POD5 files._
 
-4. Using the `read_subsets.csv` mapping file, subset your POD5 reads to the output directory `split_pod5_subsets`
-    ```
+4. Subset your POD5 reads by channel using the `summary.tsv` table created in the previous step. Output the POD5 subsets to `split_pod5_subsets/`:
+    ```bash
    pod5 subset <pod5_dir> --summary summary.tsv --columns channel --output split_pod5_subsets
    ```
 > [!WARNING]  
-> This step will take a while depending on the size of your POD5 files and the number of channels present in your data. It will generate one pod5 file per channel in the `split_pod5_subsets` output directory. Most MinION Flow Cells have 512 channels, so you should expect to see ~512 POD5 files in your output directory. **You should never output your subsetted POD5 files to your OSPool directory, as it will cause excessive strain on shared storage resources and violate OSPool usage policies.** Only output your subsetted POD5 files to your home directory.
+> This step will take a while depending on the size of your POD5 files and the number of channels present in your data. It will generate one pod5 file per channel in the `split_pod5_subsets` output directory. Most MinION Flow Cells have 512 channels, so you should expect to see ~512 POD5 files in your output directory. **Never output your subsetted POD5 files to your OSPool directory, as it will cause excessive strain on shared storage resources and violate OSPool usage policies.** Only output your subsetted POD5 files to your home directory.
    
-5. Exit the apptainer shell session
-    ```
+5. Exit the Apptainer shell:
+    ```bash
    exit
    ```
-   _You may have to run `exit` multiple times to exit the apptainer shell and return to your normal bash shell._
+   _You may have to run `exit` multiple times to exit the Apptainer shell and return to your normal bash shell._
    
-6. Create a list of POD5 files to iterate through while basecalling
+6. Create a list of POD5 files to iterate through during job submission:
 
-    ```
+    ```bash
     ls split_pod5_subsets > ~/tutorial-ONT-Basecalling/list_of_pod5_files.txt
    ```
    
@@ -250,12 +274,13 @@ When basecalling our sequencing data using simplex basecalling mode on Dorado we
     [user.name@ap40 user.name]$ 
    ```
 
-### Submitting your basecalling jobs
+### Submit Your Basecalling Jobs
 
 
-1. Create your Dorado simplex basecalling executable - `/home/<user.name>/tutorial-ONT-Basecalling/executables/run_dorado.sh`
+1. Create your Dorado simplex basecalling executable
+   `/home/<user.name>/tutorial-ONT-Basecalling/executables/run_dorado.sh`
 
-    ```
+    ```bash
     #!/bin/bash
     # Run Dorado on the EP for each POD5 file (non-resumeable)
     # Usage: ./run_dorado.sh "<dorado_args>" <dorado_model_name> <input_pod5_file>
@@ -283,13 +308,14 @@ When basecalling our sequencing data using simplex basecalling mode on Dorado we
     echo "Completed Dorado basecalling."
     
     # Convert BAM to FASTQ
-    samtools fastq "${BAM_FILE}" > "${FASTQ_FILE}"
+    bedtools bamtofastq -i "${BAM_FILE}" -fq "${FASTQ_FILE}"
     echo "Completed BAM → FASTQ conversion."
    ```
 
-2. Create your submit file for Dorado simplex basecalling - `/home/<user.name>/tutorial-ONT-Basecalling/run_dorado.sub`
+2. Create your submit file 
+    `/home/<user.name>/tutorial-ONT-Basecalling/run_dorado.sub`
 
-    ```
+    ```bash
     container_image        = "osdf:///ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/software/dorado_build1.2.0_27OCT2025_v1.sif"
     
     DORADO_MODEL = dna_r10.4.1_e8.2_400bps_hac@v5.2.0
@@ -308,44 +334,37 @@ When basecalling our sequencing data using simplex basecalling mode on Dorado we
     error                  = ./logs/err/$(POD5_input_file)_$(Process)_basecalling_step2.err
     log                    = ./logs/$(POD5_input_file)_basecalling_step2.log
    
-    # CHTC sites are currently experiencing issues with GPU jobs, so we will avoid them for this tutorial. 
-    +UNDESIRED_Sites       = "CHTC,CHTC-Spark"
-   
     request_cpus           = 1
     request_disk           = 8 GB
-    request_memory         = 20 GB
+    request_memory         = 24 GB
     retry_request_memory   = RequestMemory*2
     request_gpus           = 1
     
     queue POD5_input_file from list_of_pod5_files.txt
    ```
 
-This submit file will read the contents of `/home/<user.name>/tutorial-ONT-Basecalling/list_of_pod5_files.txt`, iterate through each line, and assign the value of each line to the variable `$POD5_input_file`. This allows us to programmatically submit _N_ jobs, where _N_ is equal to the number of POD5 subset file we created previously. Each job will have its corresponding POD5 input subset (e.x. `channel-100.pod5`) and our specific Dorado model (e.x. `dna_r10.4.1_e8.2_400bps_hac@v5.2.0.tar.gz`) files transferred to the Execution Point (EP). Additionally, we will transfer and start our `dorado_build1.2.0_27OCT2025_v1.sif` apptainer container image using the `container_image` attribute on our submit file. 
+This submit file will read the contents of `/home/<user.name>/tutorial-ONT-Basecalling/list_of_pod5_files.txt`, iterate through each line, and assign the value of each line to the variable `$POD5_input_file`. This allows you to programmatically submit _N_ jobs, where _N_ equals the number of POD5 subset files you previously created. Each job has its corresponding POD5 input subset (e.g., `channel-100.pod5`) and your specific Dorado model (e.g., `dna_r10.4.1_e8.2_400bps_hac@v5.2.0.tar.gz`) transferred to the Execution Point (EP). Additionally, the container_image attribute ensures your `dorado_build1.2.0_27OCT2025_v1.sif` Apptainer image is transferred and started for each job.
 
-The submit file will instruct the EP to run our executable `run_dorado.sh` and pass the arguments found in the `arguments` attribute. The `arguments` attribute allows us to customize the parameters passed to _Dorado_ directly on our submit file, without having to edit our executable. 
+The submit file will instruct the EP to run your executable `run_dorado.sh` and pass the arguments found in the `arguments` attribute. The `arguments` attribute allows you to customize the parameters passed to _Dorado_ directly on your submit file, without having to edit your executable. 
 
 > [!NOTE]  
 > The example submit script above is running the hac@v5.0.0 model for simplex basecalling. You can change this to `duplex sup --models-directory`. For additional usage information, refer to the [Dorado User Documentation](https://github.com/nanoporetech/dorado).
 
-3. Submit your set of basecalling jobs
+3. Submit your basecalling jobs:
 
     ```
    condor_submit run_dorado.sub
    ```
    
-    You can track the progress of your jobs with the `condor_q` command
-    
+4. Track your job progress:
+
+    ```
+   condor_watch_q
+   ```
+
 > [!TIP] 
-> You may experience some `held` jobs due to a variety of resource allocation overruns, including using more memory or CPUs than request. We recommend you use the following commands to edit those held jobs and resubmit them. 
->
-> ```
-> [user.name@ap40 user.name]$ condor_q <cluster.id> -hold
-> 12345678.123      user.name       5/6  19:47 Excessive CPU usage. Job used 3 CPUs, while request_cpus=1. Please verify that the code is configured to use a limited number of cpus/threads, and matches request_cpus.
-> [user.name@ap40 user.name]$ condor_qedit 12345678.123 requestCpus=4
-> [user.name@ap40 user.name]$ condor_release 12345678.123
-> Job 12345678.123 released
-> [user.name@ap40 user.name]$ 
-> ```
+> If you see `held` jobs (e.g., for memory overruns), use `condor_qedit` to increase resources, then `condor_release` to resume them.
+> For more details, see our guide on [Monitor and Review Jobs With condor_q and condor_history](https://portal.osg-htc.org/documentation/htc_workloads/submitting_workloads/monitor_review_jobs/).
 
 ### Submitting your basecalling jobs
 
@@ -357,11 +376,11 @@ for f in outputs/basecalledFASTQs/*.fastq; do
 done
 ```
 
-You can use this merged FASTQ file for running FastQC, mapping, or variant calling in the next sections. The recommended next step is to run FastQC to assess the quality of your basecalled reads. You can find a tutorial on running FastQC on the OSPool [here](https://portal.osg-htc.org/documentation/software_examples/bioinformatics/tutorial-fastqc/).
+You can use this merged FASTQ file for running FastQC, mapping, or variant calling in the next sections. The recommended next step is to run FastQC to assess the quality of your basecalled reads. You can find a step-by-step tutorial on running [FastQC on the OSPool](https://portal.osg-htc.org/documentation/software_examples/bioinformatics/tutorial-fastqc/) on our documentation portal.
 
 ## Next Steps
 
-Now that you've completed the long-read genomics tutorial on the OSPool, you're ready to adapt these workflows for your own data and research questions. Here are some suggestions for what you can do next:
+Now that you've completed this long-read genomics tutorial on the OSPool, you're ready to adapt these workflows for your own data and research questions. Here are some suggestions for what you can do next:
 
 🧬 Apply the Workflow to Your Own Data
 * Replace the tutorial datasets with your own POD5 files and reference genome.
