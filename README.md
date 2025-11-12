@@ -11,7 +11,7 @@ This tutorial guides you through the first step of a long-read sequencing analys
 
 All of these steps run across hundreds (or thousands) of jobs using the HTCondor workload manager and Apptainer containers to execute your software reliably and reproducibly at scale. The tutorial uses realistic genomics data and emphasizes performance, reproducibility, and portability. You will work with real data and see how high-throughput computing (HTC) can accelerate your workflows.
 
-![Workflow_Diagram.png](Workflow_Diagram.png)
+![Workflow_Diagram.png](.images/Workflow_Diagram.png)
 
 > [!NOTE]
 > If you are new to running jobs on the OSPool, complete the HTCondor ["Hello World"](https://portal.osg-htc.org/documentation/htc_workloads/workload_planning/htcondor_job_submission/) exercise before starting this tutorial.
@@ -92,6 +92,7 @@ Dorado uses deep neural network models trained to map signal patterns to their c
 
 Because each read or POD5 file can be basecalled independently, Dorado workflows scale perfectly on the OSPool, where thousands of GPU-enabled jobs can run simultaneously. The OSPool’s distributed architecture provides the compute, memory, and data-staging infrastructure (via OSDF) needed to handle large sequencing runs reproducibly and efficiently. You can turn hours of local computation into minutes of parallel basecalling across the national HTC fabric.
 
+![nanopore_basecalling.png](.images/nanopore_basecalling.png)
 
 ## Basecalling on the OSPool by Sequencing Channel
 
@@ -207,9 +208,7 @@ Oxford Nanopore sequencing runs generally yield POD5 files. Each POD5 file is ge
 duration of the sequencing run. This output format does not scale very well, as data output usually plateaus after 24-48hrs.
 This would mean that POD5 files that are generated from earlier in the sequencing run, will be larger in file size compared to
 files later in the run. Additionally, this division of data does not allow for _Duplex_ read basecalling. As a result prior
-to running Dorado, we must first reorganize the data contained within all the POD5 files. 
-
-
+to running Dorado, we must first reorganize the data contained within all the POD5 files.
 
 #### Downloading the Dorado Basecalling Models
 Dorado basecalling models are not included in the Dorado Apptainer container image by default. As a result, we must download the models we wish to use for basecalling prior to submitting our basecalling jobs. We can download the models directly using the Dorado command line interface (CLI) within our Dorado Apptainer container.
