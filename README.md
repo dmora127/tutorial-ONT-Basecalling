@@ -261,7 +261,7 @@ When basecalling our sequencing data on Dorado we can subdivide our POD5 files i
     ```bash
     pod5 view <pod5_dir> --include "read_id, channel" --output summary.tsv
    ```
-   _This will generate a TSV table mapping each read_id to each channel for basecalling. You can change `<pod5_dir>` for `./`, if you're in the current directory with your POD5 files._
+   _This will generate a TSV table mapping each read_id to each channel for basecalling. You can replace `<pod5_dir>` with `./`, if you're in the current directory with your POD5 files._
 
 4. Subset your POD5 reads by channel using the `summary.tsv` table created in the previous step. Output the POD5 subsets to `split_pod5_subsets/`:
     ```bash
