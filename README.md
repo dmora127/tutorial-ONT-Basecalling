@@ -63,13 +63,20 @@ This tutorial assumes that you:
 
 ### Materials
 
+Log into your OSPool account:
+
+    ```bash
+    ssh user.name@ap##.uw.osg-htc.org
+    ```
+
 To obtain a copy of the tutorial files, you can:
 
 * Clone the repository:
 
   ```bash
   git clone https://github.com/dmora127/tutorial-ONT-Basecalling.git
-  ./tutorial-setup.sh <username>
+  cd tutorial-ONT-Basecalling/
+  bash tutorial-setup.sh <username>
   ```
   _This script creates the directory structure in your home directory `/home/<user.name>/tutorial-ONT-Basecalling/` and OSPool directory `/ospool/ap40/<user.name>/tutorial-ONT-Basecalling/`, along with several subdirectories used in this tutorial._
 
@@ -108,15 +115,22 @@ Use the POD5 package available inside your `dorado.sif` container to generate pe
 Use a layout like the one below (directories may already exist if you ran the setup script):
 
 ```bash
-ont-basecalling/
-├── executables/               # helper scripts
-├── inputs/                    # POD5 inputs (or OSDF paths to them)
-├── logs/                      # condor .log/.out/.err
-├── outputs/                   # basecalled outputs (BAM/FASTQ)
-├── software/                  # containers, model tarballs, helper assets
-├── list_of_pod5_files.txt     # one POD5 path per line
-├── run_dorado.sub             # HTCondor submit file (GPU)
-└── tutorial-setup.sh          # optional helper to set up the tree
+./tutorial-ONT-Basecalling/
+├── executables                        # scripts for preprocessing and running dorado jobs
+│   ├── preprocessing_pod5s.sh
+│   └── run_dorado.sh
+├── inputs                             # POD5 inputs (or OSDF paths to them)
+├── list_of_pod5_files.txt             # one POD5 path per line
+├── logs                               # condor .log/.out/.err
+│   ├── err
+│   └── out
+├── outputs                            # basecalled outputs (BAM/FASTQ)
+├── README.md                          # Tutorial step-by-step documentation and instructions
+├── run_dorado_at_CHTC.sub
+├── run_dorado.sub                     # HTCondor submit file (GPU)
+├── software                           # containers recipes 
+│   └── dorado.def
+└── tutorial-setup.sh                  # optional helper to set up the tree
 ```
 
 You also have a companion **OSDF** directory for storing large files, such as containers and Dorado models:
@@ -138,13 +152,7 @@ Run the included `tutorial-setup.sh` script in the companion repository to creat
 ### Set Up Your Software Environment
 Before basecalling, set up your software environment to run Dorado inside an Apptainer container.
 
-1. Log into your OSPool account:
-
-    ```bash
-    ssh user.name@ap##.uw.osg-htc.org
-    ```
-
-2. Set your temporary Apptainer build directory to `/home/tmp/`. Once you've built your container, you can delete the contents of this directory to reduce quota usage on `/home`. 
+1. Set your temporary Apptainer build directory to `/home/tmp/`. Once you've built your container, you can delete the contents of this directory to reduce quota usage on `/home`. 
 
    On the Access Point (AP), run:
     ```bash
@@ -156,7 +164,12 @@ Before basecalling, set up your software environment to run Dorado inside an App
 > [!CAUTION]
 > Run these commands **every time you log in or build a new container**. Building Apptainer containers without setting these variables places excessive strain on shared storage resources and **violates OSPool usage policies**. Failure to follow these steps may result in restricted access.
 
-3.  Create a definition file for Apptainer to build your Dorado container. Open a text editor, such as `vim` or `nano`, and save the following as `dorado.def`:
+2. Change to your `software/` directory in your tutorial folder:
+    ```bash
+    cd ~/tutorial-ONT-Basecalling/software/
+    ```
+
+3. Create a definition file for Apptainer to build your Dorado container. Open a text editor, such as `vim` or `nano`, and save the following as `software/dorado.def`:
 
     ```bash
     Bootstrap: docker
@@ -195,7 +208,9 @@ Before basecalling, set up your software environment to run Dorado inside an App
     ```bash
     apptainer build dorado_build1.2.0_27OCT2025_v1.sif dorado.def
    ```
-   
+   > [!WARNING]
+   > This will take a few minutes depending on system usage. If you encounter any errors during the build process, double-check that you have set your temporary directories correctly (see step 1). Contact your RCF team if issues persist.
+
 5. Move your finalized container image, `dorado_build1.2.0_27OCT2025_v1.sif`, to your `OSDF` directory
     
     ```bash
@@ -267,7 +282,7 @@ When basecalling our sequencing data on Dorado we can subdivide our POD5 files i
    pod5 subset <pod5_dir> --summary summary.tsv --columns channel --output split_pod5_subsets
    ```
 > [!WARNING]  
-> This step will take a while depending on the size of your POD5 files and the number of channels present in your data. It will generate one pod5 file per channel in the `split_pod5_subsets` output directory. Most MinION Flow Cells have 512 channels, so you should expect to see ~512 POD5 files in your output directory. **Never output your subsetted POD5 files to your OSPool directory, as it will cause excessive strain on shared storage resources and violate OSPool usage policies.** Only output your subsetted POD5 files to your home directory.
+> **This step will take a while depending on the size of your POD5 files and the number of channels present in your data.** It will generate one pod5 file per channel in the `split_pod5_subsets` output directory. Most MinION Flow Cells have 512 channels, so you should expect to see ~512 POD5 files in your output directory. **Never output your subsetted POD5 files to your OSPool directory, as it will cause excessive strain on shared storage resources and violate OSPool usage policies.** Only output your subsetted POD5 files to your home directory.
    
 5. Exit the Apptainer shell:
     ```bash
@@ -300,9 +315,13 @@ When basecalling our sequencing data on Dorado we can subdivide our POD5 files i
 
 ### Submit Your Basecalling Jobs
 
+1. Change to your `tutorial-ONT-Basecalling/` directory:
+    ```bash
+    cd ~/tutorial-ONT-Basecalling/
+   ```
 
-1. Create your Dorado simplex basecalling executable
-   `/home/<user.name>/tutorial-ONT-Basecalling/executables/run_dorado.sh`
+2. Create your Dorado simplex basecalling executable
+   `~/tutorial-ONT-Basecalling/executables/run_dorado.sh`. No changes may be necessary if you are using the same Dorado script as in the example below.
 
     ```bash
     #!/bin/bash
@@ -336,11 +355,11 @@ When basecalling our sequencing data on Dorado we can subdivide our POD5 files i
     echo "Completed BAM → FASTQ conversion."
    ```
 
-2. Create your submit file 
-    `/home/<user.name>/tutorial-ONT-Basecalling/run_dorado.sub`
+3. Create your submit file 
+    `/home/<user.name>/tutorial-ONT-Basecalling/run_dorado.sub`. You will need to modify the `container_image` and `transfer_input_files` attributes to reflect your OSPool username and the Dorado model you wish to use for basecalling. You may also have to modify the `arguments` attribute if you wish to change the Dorado basecalling parameters.
 
     ```bash
-    container_image        = "osdf:///ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/software/dorado_build1.2.0_27OCT2025_v1.sif"
+    container_image        = osdf:///ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/software/dorado_build1.2.0_27OCT2025_v1.sif
     
     DORADO_MODEL = dna_r10.4.1_e8.2_400bps_hac@v5.2.0
     
@@ -349,7 +368,7 @@ When basecalling our sequencing data on Dorado we can subdivide our POD5 files i
     # Place your Dorado command (following the Dorado invocation) in the first positional argument
     arguments              = "'basecaller --device cuda:all --batchsize 16 hac@v5.0.0 --models-directory' $(DORADO_MODEL) $(POD5_input_file)"
      
-    transfer_input_files   = inputs/split_by_channels/$(POD5_input_file), osdf:///ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/data/$(DORADO_MODEL).tar.gz
+    transfer_input_files   = inputs/split_pod5_subsets/$(POD5_input_file), osdf:///ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/data/$(DORADO_MODEL).tar.gz
     transfer_output_files  = $(POD5_input_file).bam, $(POD5_input_file).bam.fastq
     transfer_output_remaps = "$(POD5_input_file).bam = ./outputs/basecalledBAMs/$(POD5_input_file).bam; \
                               $(POD5_input_file).bam.fastq = ./outputs/basecalledFASTQs/$(POD5_input_file).bam.fastq"
@@ -374,13 +393,13 @@ The submit file will instruct the EP to run your executable `run_dorado.sh` and 
 > [!NOTE]  
 > The example submit script above is running the hac@v5.0.0 model for simplex basecalling. You can change this to `duplex sup --models-directory`. For additional usage information, refer to the [Dorado User Documentation](https://github.com/nanoporetech/dorado).
 
-3. Submit your basecalling jobs:
+4. Submit your basecalling jobs:
 
     ```
    condor_submit run_dorado.sub
    ```
    
-4. Track your job progress:
+5. Track your job progress:
 
     ```
    condor_watch_q

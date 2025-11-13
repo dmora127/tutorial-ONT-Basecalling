@@ -1,11 +1,11 @@
-container_image        = "osdf:///ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/software/dorado_build1.2.0_27OCT2025_v1.sif"
+container_image        = osdf:///ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/software/dorado_build1.2.0_27OCT2025_v1.sif
 
 DORADO_MODEL = dna_r10.4.1_e8.2_400bps_hac@v5.2.0
 
 executable             = ./executables/run_dorado.sh
 arguments              = "'basecaller --device cuda:all --batchsize 16 hac@v5.0.0 --models-directory' $(DORADO_MODEL) $(POD5_input_file)"
 
-transfer_input_files   = inputs/split_by_channels/$(POD5_input_file), osdf:///ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/data/$(DORADO_MODEL).tar.gz
+transfer_input_files   = inputs/split_pod5_subsets/$(POD5_input_file), osdf:///ospool/ap40/data/<user.name>/tutorial-ONT-Basecalling/data/$(DORADO_MODEL).tar.gz
 transfer_output_files  = $(POD5_input_file).bam, $(POD5_input_file).bam.fastq
 transfer_output_remaps = "$(POD5_input_file).bam = ./outputs/basecalledBAMs/$(POD5_input_file).bam; \
                           $(POD5_input_file).bam.fastq = ./outputs/basecalledFASTQs/$(POD5_input_file).bam.fastq"
