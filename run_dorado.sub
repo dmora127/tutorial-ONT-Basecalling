@@ -16,7 +16,8 @@ log                    = ./logs/$(POD5_input_file)_basecalling_step2.log
 
 request_cpus           = 1
 request_disk           = 8 GB
-request_memory         = 24 GB
+request_memory         = 4 GB
+retry_request_memory   = 24 GB
 request_gpus           = 1
 
 queue POD5_input_file from list_of_pod5_files.txt

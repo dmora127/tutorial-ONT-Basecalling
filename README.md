@@ -379,8 +379,8 @@ When basecalling our sequencing data on Dorado we can subdivide our POD5 files i
    
     request_cpus           = 1
     request_disk           = 8 GB
-    request_memory         = 24 GB
-    retry_request_memory   = RequestMemory*2
+    request_memory         = 4 GB
+    retry_request_memory   = 24 GB
     request_gpus           = 1
     
     queue POD5_input_file from list_of_pod5_files.txt
@@ -389,6 +389,8 @@ When basecalling our sequencing data on Dorado we can subdivide our POD5 files i
 This submit file will read the contents of `/home/<user.name>/tutorial-ONT-Basecalling/list_of_pod5_files.txt`, iterate through each line, and assign the value of each line to the variable `$POD5_input_file`. This allows you to programmatically submit _N_ jobs, where _N_ equals the number of POD5 subset files you previously created. Each job processes one POD5 channel subset (e.g., `channel-100.pod5`) using your specific Dorado model (e.g., `dna_r10.4.1_e8.2_400bps_hac@v5.2.0.tar.gz`), which are transferred to the Execution Point (EP) by HTCondor. Additionally, the container_image attribute ensures your `dorado_build1.2.0_27OCT2025_v1.sif` Apptainer image is transferred and started for each job.
 
 The submit file will instruct the EP to run your executable `run_dorado.sh` and pass the arguments found in the `arguments` attribute. The `arguments` attribute allows you to customize the parameters passed to _Dorado_ directly on your submit file, without having to edit your executable. 
+
+The submit file also specifies resource requests for each job, including 1 CPU, 1 GPU, 8 GB of disk space, and 4 GB of memory (with a retry request of 24 GB if the job fails due to insufficient memory). Finally, the `transfer_output_remaps` attribute ensures that the output files are organized into specific directories within your tutorial folder.
 
 > [!NOTE]  
 > The example submit script above is running the hac@v5.0.0 model for simplex basecalling. You can change this to `duplex sup --models-directory`. For additional usage information, refer to the [Dorado User Documentation](https://github.com/nanoporetech/dorado).
