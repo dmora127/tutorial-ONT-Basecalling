@@ -14,7 +14,7 @@ All of these steps run across hundreds (or thousands) of jobs using the HTCondor
 ![Workflow_Diagram.png](.images/Workflow_Diagram.png)
 
 > [!NOTE]
-> If you are new to running jobs on the OSPool, complete the HTCondor ["Hello World"](https://portal.osg-htc.org/documentation/htc_workloads/workload_planning/htcondor_job_submission/) exercise before starting this tutorial.
+> If you are new to running jobs on the OSPool, complete the HTCondor ["Hello World"](https://portal.osg-htc.org/documentation/htc_workloads/submitting_workloads/tutorial-quickstart/) tutorial and our ["Submit Jobs to the OSPool"](https://portal.osg-htc.org/documentation/htc_workloads/workload_planning/htcondor_job_submission/) guide before starting this tutorial.
 
 **Let’s get started!**
 
